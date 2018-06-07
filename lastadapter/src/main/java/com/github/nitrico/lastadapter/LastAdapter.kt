@@ -16,13 +16,13 @@
 
 package com.github.nitrico.lastadapter
 
-import android.databinding.DataBindingUtil
-import android.databinding.ObservableList
-import android.databinding.OnRebindCallback
-import android.databinding.ViewDataBinding
-import android.support.v7.widget.RecyclerView
+import androidx.databinding.DataBindingUtil
+import androidx.databinding.ObservableList
+import androidx.databinding.OnRebindCallback
+import androidx.databinding.ViewDataBinding
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import androidx.recyclerview.widget.RecyclerView
 
 class LastAdapter(private val list: List<Any>,
                   private val variable: Int? = null,
@@ -32,7 +32,7 @@ class LastAdapter(private val list: List<Any>,
     constructor(list: List<Any>, variable: Int) : this(list, variable, false)
     constructor(list: List<Any>, stableIds: Boolean) : this(list, null, stableIds)
 
-    private val DATA_INVALIDATION = Any()
+    private val dataInvalidation = Any()
     private val callback = ObservableListCallback(this)
     private var recyclerView: RecyclerView? = null
     private var inflater: LayoutInflater? = null
@@ -46,22 +46,17 @@ class LastAdapter(private val list: List<Any>,
     }
 
     @JvmOverloads
-    fun <T : Any> map(clazz: Class<T>, layout: Int, variable: Int? = null)
-            = apply { map[clazz] = BaseType(layout, variable) }
+    fun <T : Any> map(clazz: Class<T>, layout: Int, variable: Int? = null) = apply { map[clazz] = BaseType(layout, variable) }
 
-    inline fun <reified T : Any> map(layout: Int, variable: Int? = null)
-            = map(T::class.java, layout, variable)
+    inline fun <reified T : Any> map(layout: Int, variable: Int? = null) = map(T::class.java, layout, variable)
 
-    fun <T : Any> map(clazz: Class<T>, type: AbsType<*>)
-            = apply { map[clazz] = type }
+    fun <T : Any> map(clazz: Class<T>, type: AbsType<*>) = apply { map[clazz] = type }
 
-    inline fun <reified T : Any> map(type: AbsType<*>)
-            = map(T::class.java, type)
+    inline fun <reified T : Any> map(type: AbsType<*>) = map(T::class.java, type)
 
     inline fun <reified T : Any, B : ViewDataBinding> map(layout: Int,
                                                           variable: Int? = null,
-                                                          noinline f: (Type<B>.() -> Unit)? = null)
-            = map(T::class.java, Type<B>(layout, variable).apply { f?.invoke(this) })
+                                                          noinline f: (Type<B>.() -> Unit)? = null) = map(T::class.java, Type<B>(layout, variable).apply { f?.invoke(this) })
 
     fun handler(handler: Handler) = apply {
         when (handler) {
@@ -86,19 +81,20 @@ class LastAdapter(private val list: List<Any>,
     fun into(recyclerView: RecyclerView) = apply { recyclerView.adapter = this }
 
 
-
     override fun onCreateViewHolder(view: ViewGroup, viewType: Int): Holder<ViewDataBinding> {
-        val binding = DataBindingUtil.inflate<ViewDataBinding>(inflater, viewType, view, false)
+        val binding = DataBindingUtil.inflate<ViewDataBinding>(inflater!!, viewType, view, false)
         val holder = Holder(binding)
         binding.addOnRebindCallback(object : OnRebindCallback<ViewDataBinding>() {
-            override fun onPreBind(binding: ViewDataBinding) = recyclerView?.isComputingLayout ?: false
+            override fun onPreBind(binding: ViewDataBinding) = recyclerView?.isComputingLayout
+                    ?: false
+
             override fun onCanceled(binding: ViewDataBinding) {
-                if (recyclerView?.isComputingLayout ?: true) {
+                if (recyclerView?.isComputingLayout != false) {
                     return
                 }
                 val position = holder.adapterPosition
                 if (position != RecyclerView.NO_POSITION) {
-                    notifyItemChanged(position, DATA_INVALIDATION)
+                    notifyItemChanged(position, dataInvalidation)
                 }
             }
         })
@@ -138,15 +134,15 @@ class LastAdapter(private val list: List<Any>,
     }
 
     override fun getItemId(position: Int): Long {
-        if (hasStableIds()) {
+        return if (hasStableIds()) {
             val item = list[position]
             if (item is StableId) {
-                return item.stableId
+                item.stableId
             } else {
                 throw IllegalStateException("${item.javaClass.simpleName} must implement StableId interface.")
             }
         } else {
-            return super.getItemId(position)
+            super.getItemId(position)
         }
     }
 
@@ -167,18 +163,15 @@ class LastAdapter(private val list: List<Any>,
         recyclerView = null
     }
 
-    override fun getItemViewType(position: Int)
-            = layoutHandler?.getItemLayout(list[position], position)
+    override fun getItemViewType(position: Int) = layoutHandler?.getItemLayout(list[position], position)
             ?: typeHandler?.getItemType(list[position], position)?.layout
             ?: getType(position)?.layout
             ?: throw RuntimeException("Invalid object at position $position: ${list[position].javaClass}")
 
-    private fun getType(position: Int)
-            = typeHandler?.getItemType(list[position], position)
+    private fun getType(position: Int) = typeHandler?.getItemType(list[position], position)
             ?: map[list[position].javaClass]
 
-    private fun getVariable(type: BaseType)
-            = type.variable
+    private fun getVariable(type: BaseType) = type.variable
             ?: variable
             ?: throw IllegalStateException("No variable specified for type ${type.javaClass.simpleName}")
 
@@ -187,7 +180,7 @@ class LastAdapter(private val list: List<Any>,
             return false
         }
         payloads.forEach {
-            if (it != DATA_INVALIDATION) {
+            if (it != dataInvalidation) {
                 return false
             }
         }
